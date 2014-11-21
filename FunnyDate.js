@@ -1,5 +1,4 @@
 /**
- * Created with JetBrains PhpStorm.
  * User: kondaurov
  * Date: 15.08.13
  * Time: 13:23
@@ -7,7 +6,7 @@
  */
 
 /**
- * todo - написать обертку над методами стандартного объекта Date
+ * todo - реализовать класс FunnyDateInterval и использовать его в sub, add, diff
  */
 
 function FunnyDate() {
@@ -58,20 +57,25 @@ function FunnyDate() {
             //Time
             'H': function() {
                 return concatLeadingZero(date.hour);
-            }, // 24 hour format with leading zeros
+            }, // 24 hour format with leading zero
             'h': function() {
                 var res = date.hour > 12 ? date.hour - 12 : date.hour;
                 return concatLeadingZero(res);
-            }, // 12 hour format with leading zeros
+            }, // 12 hour format with leading zero
             'i': function() {
                 return concatLeadingZero(date.minutes);
-            }, // minutes with leading zeros
+            }, // minutes with leading zero
             's': function() {
                 return concatLeadingZero(date.seconds);
-            }, // seconds with leading zeros
+            }, // seconds with leading zero
             'u': function() {
                 return jsObjDate.getTime();
-            }  // microseconds*/
+            },  // microseconds*/
+            //Timezone
+            'P': function() {
+                var timeZone = -jsObjDate.getTimezoneOffset()/60;
+                return (timeZone >= 0 ? '+' + timeZone : '-' + timeZone);
+            }
         },
         locales = {
             ru: {
@@ -171,6 +175,9 @@ function FunnyDate() {
 
             if(typeof formats[c] != 'undefined') {
                 res += formats[c]();
+            } else if(c == '\\') {
+                i++;
+                res += format[i];
             } else {
                 res += c;
             }
@@ -181,6 +188,38 @@ function FunnyDate() {
 
     function getType(a) {
         return {}.toString.call(a);
+    }
+
+    function merge(a, b) {
+        for(var i in a) {
+            if(typeof b[i] != 'undefined') {
+                a[i] = b[i];
+            }
+        }
+
+        return a;
+    }
+
+    function convertToMicroSeconds(a) {
+        var requireProperty = {
+            year: 0,
+            month: 0,
+            day: 0,
+            hour: 0,
+            minute: 0,
+            second: 0
+        }, result = 0;
+
+        requireProperty = merge(requireProperty, a);
+
+        result += requireProperty.second * FunnyDate.MICROSEC_IN_SECOND;
+        result += requireProperty.minute * FunnyDate.MICROSEC_IN_MINUTE;
+        result += requireProperty.hour * FunnyDate.MICROSEC_IN_HOUR;
+        result += requireProperty.day * FunnyDate.MICROSEC_IN_DAY;
+        result += requireProperty.month * FunnyDate.MICROSEC_IN_MONTH;
+        result += requireProperty.year * FunnyDate.MICROSEC_IN_YEAR;
+
+        return result;
     }
 
     //public methods
@@ -292,9 +331,33 @@ function FunnyDate() {
 
             locales[localeName] = locale;
             return true;
+        },
+
+        /**
+         * @returns {Date}
+         */
+        getStandartObject: function() {
+            return jsObjDate;
+        },
+
+        add: function(date) {
+            var microTime = convertToMicroSeconds(date);
+
+            jsObjDate = new Date((jsObjDate.getTime() + microTime));
+            fillDateProperty();
+
+            return self;
+        },
+
+        sub: function(date) {
+            var microTime = convertToMicroSeconds(date);
+
+            jsObjDate = new Date((jsObjDate.getTime() - microTime));
+            fillDateProperty();
+
+            return self;
         }
     }
-
 }
 
 /**
@@ -304,8 +367,10 @@ FunnyDate.MICROSEC_IN_SECOND = 1000;
 FunnyDate.MICROSEC_IN_MINUTE = FunnyDate.MICROSEC_IN_SECOND * 60;
 FunnyDate.MICROSEC_IN_HOUR = FunnyDate.MICROSEC_IN_MINUTE * 60;
 FunnyDate.MICROSEC_IN_DAY = FunnyDate.MICROSEC_IN_HOUR * 24;
+FunnyDate.MICROSEC_IN_MONTH = FunnyDate.MICROSEC_IN_DAY * 30; //if in month 30 days
+FunnyDate.MICROSEC_IN_YEAR = FunnyDate.MICROSEC_IN_DAY * 365; //if in month 365 days
 
-
+FunnyDate.FORMAT_ATOM = "Y-m-d\\TH:i:sP";
 
 
 /**
@@ -315,3 +380,5 @@ FunnyDate.MICROSEC_IN_DAY = FunnyDate.MICROSEC_IN_HOUR * 24;
 FunnyDate.parseDate = function(date) {
     return new FunnyDate(date);
 };
+
+
